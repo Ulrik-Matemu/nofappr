@@ -41,9 +41,9 @@ const StreakCounter: React.FC = () => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-blue-500/10 border-4 border-zinc-50 dark:border-zinc-700/50"
+        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-[#00ff9d]/10 border-4 border-[#00ff9d]/30 dark:border-[#00ff9d]/20"
       >
-        <div className="absolute inset-0 rounded-full border-4 border-blue-500/10 dark:border-blue-400/10" />
+        <div className="absolute inset-0 rounded-full border-4 border-[#00ff9d]/20 dark:border-[#00ff9d]/10" />
         
         <motion.h2 
           initial={{ y: -10, opacity: 0 }}
@@ -59,11 +59,11 @@ const StreakCounter: React.FC = () => {
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 100, delay: 0.1 }}
-            className="text-7xl font-bold text-blue-600 dark:text-blue-400 tabular-nums tracking-tight"
+            className="text-7xl font-bold text-[#00ff9d] dark:text-[#00ff9d] tabular-nums tracking-tight"
           >
             {streak}
           </motion.span>
-          <span className="text-lg text-zinc-400 font-medium mt-1">
+          <span className="text-lg text-[#00ff9d] font-medium mt-1">
             {streak === 1 ? 'Day' : 'Days'}
           </span>
         </div>

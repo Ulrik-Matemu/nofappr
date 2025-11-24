@@ -94,7 +94,11 @@ function App() {
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
-                <span className="relative text-2xl mb-0.5 transform transition-transform duration-300 group-hover:scale-110">
+                <span
+                  className={`relative text-2xl mb-0.5 transform transition-transform duration-300 group-hover:scale-110 ${
+                    activeTab === tab.id ? 'text-[#00ff9d]' : ''
+                  }`}
+                >
                   {tab.icon}
                 </span>
                 <span className={`relative text-[10px] font-medium transition-colors duration-200 ${
