@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { getStreak, resetStreak } from '../utils/storage';
+import { motion, AnimatePresence } from 'motion/react';
+import { getStreak, resetStreak, checkAchievements } from '../utils/storage';
 
 const StreakCounter: React.FC = () => {
   const [streak, setStreak] = useState<number>(0);
+  const [showUnlock, setShowUnlock] = useState(false);
 
   useEffect(() => {
-    setStreak(getStreak());
+    const current = getStreak();
+    setStreak(current);
+    if (checkAchievements(current)) {
+      setShowUnlock(true);
+      setTimeout(() => setShowUnlock(false), 3000);
+    }
   }, []);
 
   const handleReset = () => {
@@ -18,6 +24,19 @@ const StreakCounter: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center">
+      <AnimatePresence>
+        {showUnlock && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute top-20 z-50 bg-yellow-400 text-yellow-900 px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2"
+          >
+            <span>🏆</span> New Achievement Unlocked!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

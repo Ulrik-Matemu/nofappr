@@ -4,10 +4,12 @@ import StreakCounter from './components/StreakCounter';
 import CheckIn from './components/CheckIn';
 import UrgeKiller from './components/UrgeKiller';
 import Journal from './components/Journal';
+import Stats from './components/Stats';
 import Onboarding from './components/Onboarding';
 import { getOnboardingStatus } from './utils/storage';
+import { Flame, ChartNoAxesColumn, CircleCheckBig, ShieldHalf, NotebookPen } from 'lucide-react';
 
-type Tab = 'streak' | 'checkin' | 'urge' | 'journal';
+type Tab = 'streak' | 'checkin' | 'urge' | 'journal' | 'stats';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('streak');
@@ -30,6 +32,8 @@ function App() {
     switch (activeTab) {
       case 'streak':
         return <StreakCounter />;
+      case 'stats':
+        return <Stats />;
       case 'checkin':
         return <CheckIn />;
       case 'urge':
@@ -47,7 +51,7 @@ function App() {
       <header className="fixed top-0 w-full z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-center max-w-md">
           <h1 className="text-sm font-semibold tracking-wider uppercase text-zinc-500 dark:text-zinc-400">
-            NoFap Tracker
+            NoFappr
           </h1>
         </div>
       </header>
@@ -72,10 +76,11 @@ function App() {
         <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-zinc-200/50 dark:shadow-black/40 border border-white/20 dark:border-zinc-800 max-w-md mx-auto">
           <div className="flex justify-around items-center p-2">
             {[
-              { id: 'streak', icon: '🔥', label: 'Streak' },
-              { id: 'checkin', icon: '✅', label: 'Check-In' },
-              { id: 'urge', icon: '🛡️', label: 'Urge' },
-              { id: 'journal', icon: '📝', label: 'Journal' }
+              { id: 'streak', icon: <Flame className="w-5 h-5" />, label: 'Streak' },
+              { id: 'stats', icon: <ChartNoAxesColumn className='w-5 h-5' />, label: 'Stats' },
+              { id: 'checkin', icon: <CircleCheckBig className='w-5 h-6' />, label: 'Check-In' },
+              { id: 'urge', icon: <ShieldHalf className='w-5 h-5' />, label: 'Urge' },
+              { id: 'journal', icon: <NotebookPen className='w-5 h-5' />, label: 'Journal' }
             ].map((tab) => (
               <button
                 key={tab.id}
