@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { getStreak, resetStreak } from '../utils/storage';
 
 const StreakCounter: React.FC = () => {
@@ -16,17 +17,56 @@ const StreakCounter: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-800 rounded-xl shadow-lg w-full max-w-sm mx-auto">
-      <h2 className="text-lg font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Current Streak</h2>
-      <div className="text-6xl font-bold text-blue-600 dark:text-blue-400 my-4">
-        {streak} <span className="text-2xl text-zinc-500 dark:text-zinc-400">days</span>
-      </div>
-      <button
+    <div className="flex flex-col items-center">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-blue-500/10 border-4 border-zinc-50 dark:border-zinc-700/50"
+      >
+        <div className="absolute inset-0 rounded-full border-4 border-blue-500/10 dark:border-blue-400/10" />
+        
+        <motion.h2 
+          initial={{ y: -10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-sm font-semibold text-zinc-400 uppercase tracking-widest mb-2"
+        >
+          Current Streak
+        </motion.h2>
+        
+        <div className="flex flex-col items-center">
+          <motion.span 
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 100, delay: 0.1 }}
+            className="text-7xl font-bold text-blue-600 dark:text-blue-400 tabular-nums tracking-tight"
+          >
+            {streak}
+          </motion.span>
+          <span className="text-lg text-zinc-400 font-medium mt-1">
+            {streak === 1 ? 'Day' : 'Days'}
+          </span>
+        </div>
+      </motion.div>
+
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="mt-8 text-center text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed"
+      >
+        "Success is the sum of small efforts, repeated day in and day out."
+      </motion.p>
+
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={handleReset}
-        className="mt-4 px-6 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 rounded-lg transition-colors"
+        className="mt-8 px-6 py-2 text-xs font-medium text-red-500/80 hover:text-red-600 dark:text-red-400/80 dark:hover:text-red-300 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all"
       >
         Reset Streak
-      </button>
+      </motion.button>
     </div>
   );
 };

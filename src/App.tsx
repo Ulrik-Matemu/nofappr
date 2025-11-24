@@ -1,13 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import StreakCounter from './components/StreakCounter';
 import CheckIn from './components/CheckIn';
 import UrgeKiller from './components/UrgeKiller';
 import Journal from './components/Journal';
+import Onboarding from './components/Onboarding';
+import { getOnboardingStatus } from './utils/storage';
 
 type Tab = 'streak' | 'checkin' | 'urge' | 'journal';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('streak');
+  const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const onboarded = getOnboardingStatus();
+    setIsOnboarded(onboarded);
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) return null;
+
+  if (!isOnboarded) {
+    return <Onboarding onComplete={() => setIsOnboarded(true)} />;
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -25,56 +42,66 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
-      <header className="p-4 text-center bg-white dark:bg-zinc-800 shadow-sm">
-        <h1 className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400">NoFap Tracker</h1>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-blue-100 dark:selection:bg-blue-900/30">
+      {/* Header */}
+      <header className="fixed top-0 w-full z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/50">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-center max-w-md">
+          <h1 className="text-sm font-semibold tracking-wider uppercase text-zinc-500 dark:text-zinc-400">
+            NoFap Tracker
+          </h1>
+        </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24 max-w-md">
-        {renderContent()}
+      {/* Main Content */}
+      <main className="container mx-auto px-4 pt-24 pb-32 max-w-md overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700 pb-safe">
-        <div className="flex justify-around items-center max-w-md mx-auto">
-          <button
-            onClick={() => setActiveTab('streak')}
-            className={`flex flex-col items-center p-3 w-full transition-colors ${
-              activeTab === 'streak' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <span className="text-xl mb-1">🔥</span>
-            <span className="text-[10px] font-medium uppercase tracking-wide">Streak</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('checkin')}
-            className={`flex flex-col items-center p-3 w-full transition-colors ${
-              activeTab === 'checkin' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <span className="text-xl mb-1">✅</span>
-            <span className="text-[10px] font-medium uppercase tracking-wide">Check-In</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('urge')}
-            className={`flex flex-col items-center p-3 w-full transition-colors ${
-              activeTab === 'urge' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <span className="text-xl mb-1">🛡️</span>
-            <span className="text-[10px] font-medium uppercase tracking-wide">Urge</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('journal')}
-            className={`flex flex-col items-center p-3 w-full transition-colors ${
-              activeTab === 'journal' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <span className="text-xl mb-1">📝</span>
-            <span className="text-[10px] font-medium uppercase tracking-wide">Journal</span>
-          </button>
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-6 left-4 right-4 z-20">
+        <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-zinc-200/50 dark:shadow-black/40 border border-white/20 dark:border-zinc-800 max-w-md mx-auto">
+          <div className="flex justify-around items-center p-2">
+            {[
+              { id: 'streak', icon: '🔥', label: 'Streak' },
+              { id: 'checkin', icon: '✅', label: 'Check-In' },
+              { id: 'urge', icon: '🛡️', label: 'Urge' },
+              { id: 'journal', icon: '📝', label: 'Journal' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as Tab)}
+                className="relative flex flex-col items-center justify-center w-full py-3 px-1 rounded-xl group"
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-zinc-100 dark:bg-zinc-800 rounded-xl"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative text-2xl mb-0.5 transform transition-transform duration-300 group-hover:scale-110">
+                  {tab.icon}
+                </span>
+                <span className={`relative text-[10px] font-medium transition-colors duration-200 ${
+                  activeTab === tab.id 
+                    ? 'text-zinc-900 dark:text-white' 
+                    : 'text-zinc-400 dark:text-zinc-500'
+                }`}>
+                  {tab.label}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
     </div>

@@ -2,6 +2,15 @@ const STORAGE_KEYS = {
   START_DATE: 'nofap_start_date',
   CHECK_INS: 'nofap_check_ins',
   JOURNAL: 'nofap_journal',
+  ONBOARDING_COMPLETE: 'nofap_onboarding_complete',
+};
+
+export const getOnboardingStatus = (): boolean => {
+  return localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE) === 'true';
+};
+
+export const setOnboardingComplete = () => {
+  localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
 };
 
 export const getStreak = (): number => {
