@@ -15,8 +15,12 @@ export const setOnboardingComplete = () => {
   localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
 };
 
+export const getStartDate = (): string | null => {
+  return localStorage.getItem(STORAGE_KEYS.START_DATE);
+};
+
 export const getStreak = (): number => {
-  const startDate = localStorage.getItem(STORAGE_KEYS.START_DATE);
+  const startDate = getStartDate();
   if (!startDate) return 0;
 
   const start = new Date(startDate);

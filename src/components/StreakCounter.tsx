@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getStreak, resetStreak, checkAchievements } from '../utils/storage';
+import { getStreak, resetStreak, checkAchievements, getStartDate } from '../utils/storage';
 
 const StreakCounter: React.FC = () => {
   const [streak, setStreak] = useState<number>(0);
   const [showUnlock, setShowUnlock] = useState(false);
+  const [timeElapsed, setTimeElapsed] = useState<string>('00:00:00');
 
   useEffect(() => {
     const current = getStreak();
@@ -13,6 +14,28 @@ const StreakCounter: React.FC = () => {
       setShowUnlock(true);
       setTimeout(() => setShowUnlock(false), 3000);
     }
+    
+    // Timer logic
+    const startDateStr = getStartDate();
+    const startTime = startDateStr ? new Date(startDateStr).getTime() : new Date().getTime();
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const diff = now - startTime;
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setTimeElapsed(
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      );
+    };
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleReset = () => {
@@ -69,11 +92,22 @@ const StreakCounter: React.FC = () => {
         </div>
       </motion.div>
 
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="mt-6 px-4 py-2 rounded-full bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 shadow-sm"
+      >
+        <span className="text-sm font-mono font-medium text-zinc-500 dark:text-zinc-400 tracking-widest tabular-nums">
+          {timeElapsed}
+        </span>
+      </motion.div>
+
       <motion.p 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="mt-8 text-center text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed"
+        className="mt-6 text-center text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed"
       >
         "Success is the sum of small efforts, repeated day in and day out."
       </motion.p>
