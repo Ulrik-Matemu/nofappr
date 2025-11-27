@@ -13,9 +13,9 @@ export default defineConfig({
         enabled: true
       },
       manifest: {
-        name: 'NoFappr',
-        short_name: 'NoFappr',
-        description: 'Track your nofap journey and stay motivated with streak tracking and progress visualization',
+        name: 'Streakly',
+        short_name: 'Streakly',
+        description: 'Track your quit journey and stay motivated with streak tracking and progress visualization',
         theme_color: '#00ff9d',
         background_color: '#000000',
         display: 'standalone',
