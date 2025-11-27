@@ -46,7 +46,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#ecffe9] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-blue-100 dark:selection:bg-blue-900/30">
+    <div className="min-h-screen bg-gray-300 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-blue-100 dark:selection:bg-blue-900/30">
       {/* Header */}
       <header className="fixed top-0 w-full z-10 bg-transparent backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-center max-w-md">

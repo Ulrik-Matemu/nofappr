@@ -198,11 +198,11 @@ const Stats: React.FC = () => {
         transition={{ delay: 0.2 }}
         className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
       >
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-6">This Week's Progress</h3>
-        <div className="flex items-end justify-between h-32 gap-2">
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-white">This Week's Progress</h3>
+        <div className="flex items-end justify-between h-24 gap-2">
           {weeklyData.map((val, i) => (
             <div key={i} className="flex flex-col items-center flex-1 group">
-              <div className="relative w-full flex items-end justify-center h-full min-h-[120px]">
+              <div className="relative w-full flex items-end justify-center h-full min-h-[100px]">
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{
@@ -219,9 +219,9 @@ const Stats: React.FC = () => {
                     transition: { duration: 0.2 }
                   }}
                   className={`w-full max-w-[28px] rounded-lg ${i === currentDayIndex
-                      ? 'bg-gradient-to-t from-blue-500 to-blue-400 dark:from-blue-600 dark:to-blue-500 shadow-lg shadow-blue-500/30'
+                      ? 'bg-gradient-to-t from-[#00ff9d] dark:from-[#00ff9d] dark:to-zinc-900 shadow-lg shadow-[#00ff9d]/30'
                       : val > 0
-                        ? 'bg-gradient-to-t from-zinc-200 to-zinc-100 dark:from-zinc-700 dark:to-zinc-800 group-hover:from-blue-300 group-hover:to-blue-200 dark:group-hover:from-blue-800 dark:group-hover:to-blue-900'
+                        ? 'bg-gradient-to-t from-zinc-200 to-zinc-100 dark:from-zinc-700 dark:to-zinc-800 group-hover:from-emerald-300 group-hover:to-emerald-200 dark:group-hover:from-emerald-800 dark:group-hover:to-emerald-900'
                         : 'bg-zinc-100/50 dark:bg-zinc-800/30'
                     } transition-all duration-300`}
                   style={{
@@ -240,8 +240,8 @@ const Stats: React.FC = () => {
                 )}
               </div>
               <span className={`text-[11px] font-semibold mt-3 uppercase transition-colors ${i === currentDayIndex
-                  ? 'text-blue-500 dark:text-blue-400'
-                  : 'text-zinc-400 dark:text-zinc-500 group-hover:text-blue-400 dark:group-hover:text-blue-500'
+                  ? 'text-emerald-500 dark:text-emerald-400'
+                  : 'text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-400 dark:group-hover:text-emerald-500'
                 }`}>
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'][i]}
               </span>
@@ -271,8 +271,8 @@ const Stats: React.FC = () => {
                       transition={{ duration: 1, ease: "easeOut", delay: i * 0.1 }}
                       className={`w-full ${
                         data.isCurrent 
-                          ? 'bg-blue-500 dark:bg-blue-500' 
-                          : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-blue-300 dark:group-hover:bg-blue-800'
+                          ? 'bg-emerald-500 dark:bg-emerald-500' 
+                          : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-emerald-300 dark:group-hover:bg-emerald-800'
                       } transition-colors`}
                     />
                   </div>
@@ -282,7 +282,7 @@ const Stats: React.FC = () => {
                     <span className="text-xs font-bold text-white">{data.cleanDays}</span>
                   </div>
                 </div>
-                <span className={`text-[10px] font-medium uppercase ${data.isCurrent ? 'text-blue-500 dark:text-blue-400' : 'text-zinc-400'}`}>
+                <span className={`text-[10px] font-medium uppercase ${data.isCurrent ? 'text-emerald-500 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
                   {data.label}
                 </span>
               </div>
