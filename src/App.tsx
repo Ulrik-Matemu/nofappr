@@ -46,7 +46,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-blue-100 dark:selection:bg-blue-900/30">
+    <div className="min-h-screen bg-[#ecffe9] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-blue-100 dark:selection:bg-blue-900/30">
       {/* Header */}
       <header className="fixed top-0 w-full z-10 bg-transparent backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-center max-w-md">
@@ -73,7 +73,7 @@ function App() {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-6 left-4 right-4 z-20">
-        <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-zinc-200/50 dark:shadow-black/40 border border-white/20 dark:border-zinc-800 max-w-md mx-auto">
+        <div className="bg-white dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-zinc-200/50 dark:shadow-black/40 border border-white/20 dark:border-zinc-800 max-w-md mx-auto">
           <div className="flex justify-around items-center p-2">
             {[
               { id: 'streak', icon: <Flame className="w-5 h-5" />, label: 'Streak' },
