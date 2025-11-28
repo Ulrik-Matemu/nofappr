@@ -15,6 +15,7 @@ const Journal: React.FC = () => {
   const handleSave = () => {
     saveJournalEntry(entry);
     setIsSaved(true);
+    setEntry(''); // Clear input after save
     setTimeout(() => setIsSaved(false), 2000);
   };
 
@@ -27,7 +28,7 @@ const Journal: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 border border-zinc-100 dark:border-zinc-800"
+        className="w-full bg-[#ecffe9] dark:bg-zinc-900 rounded-3xl p-8 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 border border-zinc-100 dark:border-zinc-800"
       >
         <div className="flex justify-between items-center w-full mb-6">
           <div className="w-8" /> {/* Spacer */}
@@ -73,7 +74,7 @@ const Journal: React.FC = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSave}
-            className="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-semibold shadow-lg shadow-zinc-500/20 transition-shadow hover:shadow-zinc-500/30 ml-auto"
+            className="px-8 py-3 bg-zinc-900 dark:bg-[#ecffe9] text-white dark:text-zinc-900 rounded-xl font-semibold shadow-lg shadow-zinc-500/20 transition-shadow hover:shadow-zinc-500/30 ml-auto"
           >
             Save Entry
           </motion.button>

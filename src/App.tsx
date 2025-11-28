@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import StreakCounter from './components/StreakCounter';
-import CheckIn from './components/CheckIn';
-import UrgeKiller from './components/UrgeKiller';
-import Journal from './components/Journal';
-import Stats from './components/Stats';
-import Onboarding from './components/Onboarding';
 import { getOnboardingStatus } from './utils/storage';
 import { Flame, ChartNoAxesColumn, CircleCheckBig, ShieldHalf, NotebookPen } from 'lucide-react';
+
+const StreakCounter = lazy(() => import('./components/StreakCounter'));
+const CheckIn = lazy(() => import('./components/CheckIn'));
+const UrgeKiller = lazy(() => import('./components/UrgeKiller'));
+const Journal = lazy(() => import('./components/Journal'));
+const Stats = lazy(() => import('./components/Stats'));
+const Onboarding = lazy(() => import('./components/Onboarding'));
 
 type Tab = 'streak' | 'checkin' | 'urge' | 'journal' | 'stats';
 
@@ -25,7 +26,11 @@ function App() {
   if (isLoading) return null;
 
   if (!isOnboarded) {
-    return <Onboarding onComplete={() => setIsOnboarded(true)} />;
+    return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center text-zinc-500">Loading...</div>}>
+        <Onboarding onComplete={() => setIsOnboarded(true)} />
+      </Suspense>
+    );
   }
 
   const renderContent = () => {
@@ -66,7 +71,9 @@ function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {renderContent()}
+            <Suspense fallback={<div className="flex h-64 items-center justify-center text-zinc-500">Loading...</div>}>
+              {renderContent()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
