@@ -259,7 +259,7 @@ const Stats: React.FC = () => {
           className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
         >
           <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Monthly History</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Month Bar shows how many clean days each month (height represents percentage of total days in that month). Current month is highlighted in blue.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Month Bar shows how many clean days each month (height represents percentage of total days in that month). Current month is highlighted in emerald.</p>
           <div className="flex items-end gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {monthlyData.map((data, i) => (
               <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
