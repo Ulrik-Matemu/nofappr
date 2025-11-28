@@ -64,7 +64,7 @@ const StreakCounter: React.FC = () => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-[#00ff9d]/10 border-4 border-[#00ff9d]/30 dark:border-[#00ff9d]/20"
+        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-[#00ff9d]/10 border-4 border-[#00ff9d]/30 dark:border-[#00ff9d]/20 md:mt-40"
       >
         <div className="absolute inset-0 rounded-full border-4 border-[#00ff9d]/20 dark:border-[#00ff9d]/10" />
         

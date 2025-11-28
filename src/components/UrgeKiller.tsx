@@ -75,7 +75,7 @@ const UrgeKiller: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto mt-[-24px]">
+    <div className="flex flex-col w-full max-w-sm mx-auto mt-[-24px] md:mt-30">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
