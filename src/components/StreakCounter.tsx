@@ -14,7 +14,7 @@ const StreakCounter: React.FC = () => {
       setShowUnlock(true);
       setTimeout(() => setShowUnlock(false), 3000);
     }
-    
+
     // Timer logic
     const startDateStr = getStartDate();
     const startTime = startDateStr ? new Date(startDateStr).getTime() : new Date().getTime();
@@ -22,19 +22,19 @@ const StreakCounter: React.FC = () => {
     const updateTimer = () => {
       const now = new Date().getTime();
       const diff = now - startTime;
-      
+
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      
+
       setTimeElapsed(
         `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
       );
     };
-    
+
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -60,15 +60,15 @@ const StreakCounter: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-[#00ff9d]/10 border-4 border-[#00ff9d]/30 dark:border-[#00ff9d]/20 md:mt-40"
+        className="relative flex flex-col items-center justify-center w-64 h-64 rounded-full bg-white dark:bg-zinc-800 shadow-2xl shadow-[#00ff9d]/10 border-4 border-[#00ff9d]/30 dark:border-[#00ff9d]/20"
       >
         <div className="absolute inset-0 rounded-full border-4 border-[#00ff9d]/20 dark:border-[#00ff9d]/10" />
-        
-        <motion.h2 
+
+        <motion.h2
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -76,9 +76,9 @@ const StreakCounter: React.FC = () => {
         >
           Current Streak
         </motion.h2>
-        
+
         <div className="flex flex-col items-center">
-          <motion.span 
+          <motion.span
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 100, delay: 0.1 }}
@@ -92,7 +92,7 @@ const StreakCounter: React.FC = () => {
         </div>
       </motion.div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
@@ -103,7 +103,7 @@ const StreakCounter: React.FC = () => {
         </span>
       </motion.div>
 
-      <motion.p 
+      <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}

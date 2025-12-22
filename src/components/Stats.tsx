@@ -21,7 +21,7 @@ const Stats: React.FC = () => {
       const startDate = getStartDate();
       const currentStreakVal = getStreak();
 
-      console.log('Stats Debug:', { history, startDate, currentStreakVal });
+
 
       const resetPoints = [...history];
       if (startDate) resetPoints.push(startDate);
@@ -81,11 +81,11 @@ const Stats: React.FC = () => {
       // Fallback: Ensure today's value matches current streak if valid
       const todayIndex = new Date().getDay();
       if (data[todayIndex] === 0 && currentStreakVal > 0) {
-        console.log('Correcting today data with current streak:', currentStreakVal);
+
         data[todayIndex] = currentStreakVal;
       }
 
-      console.log('Calculated Weekly Data:', data);
+
       setWeeklyData(data);
     };
 
@@ -93,70 +93,70 @@ const Stats: React.FC = () => {
     const calculateMonthlyData = () => {
       const history = getRelapseHistory();
       const startDate = getStartDate();
-      
+
       let dates = history.map(d => new Date(d).getTime());
       if (startDate) dates.push(new Date(startDate).getTime());
-      
+
       // If no data, at least show current month
       if (dates.length === 0) {
         dates.push(new Date().getTime());
       }
-      
+
       const minTime = Math.min(...dates);
       const earliestDate = new Date(minTime);
       const now = new Date();
-      
+
       let iter = new Date(earliestDate);
       iter.setDate(1); // Start of that month
-      
+
       const months = [];
-      
+
       while (iter <= now) {
         const year = iter.getFullYear();
         const month = iter.getMonth();
-        
+
         const monthStart = new Date(year, month, 1);
         const monthEnd = new Date(year, month + 1, 0);
-        
+
         // Determine active window
         const activeStart = monthStart < earliestDate ? earliestDate : monthStart;
         const activeEnd = monthEnd > now ? now : monthEnd;
-        
-        const startDay = new Date(activeStart); startDay.setHours(0,0,0,0);
-        const endDay = new Date(activeEnd); endDay.setHours(0,0,0,0);
-        
+
+        const startDay = new Date(activeStart); startDay.setHours(0, 0, 0, 0);
+        const endDay = new Date(activeEnd); endDay.setHours(0, 0, 0, 0);
+
         // Create relapse set
         const relapseDays = new Set(history.map(h => {
-           const d = new Date(h);
-           return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          const d = new Date(h);
+          return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
         }));
-        
+
         let cleanCount = 0;
         const loopDay = new Date(startDay);
-        
+
         // Prevent infinite loop if startDay > endDay (can happen if earliestDate > now slightly due to timezones)
         if (startDay <= endDay) {
           while (loopDay <= endDay) {
-             const dayKey = `${loopDay.getFullYear()}-${loopDay.getMonth()}-${loopDay.getDate()}`;
-             if (!relapseDays.has(dayKey)) {
-                 cleanCount++;
-             }
-             loopDay.setDate(loopDay.getDate() + 1);
+            const dayKey = `${loopDay.getFullYear()}-${loopDay.getMonth()}-${loopDay.getDate()}`;
+            if (!relapseDays.has(dayKey)) {
+              cleanCount++;
+            }
+            loopDay.setDate(loopDay.getDate() + 1);
           }
         }
-        
+
         const monthName = monthStart.toLocaleString('default', { month: 'short' });
-        
+
         months.push({
-            label: `${monthName}`,
-            cleanDays: cleanCount,
-            totalDays: monthEnd.getDate(),
-            isCurrent: month === now.getMonth() && year === now.getFullYear()
+          label: `${monthName}`,
+          cleanDays: cleanCount,
+          totalDays: monthEnd.getDate(),
+          isCurrent: month === now.getMonth() && year === now.getFullYear()
         });
-        
+
         iter.setMonth(iter.getMonth() + 1);
       }
-      
+
       setMonthlyData(months);
     };
 
@@ -219,10 +219,10 @@ const Stats: React.FC = () => {
                     transition: { duration: 0.2 }
                   }}
                   className={`w-full max-w-[28px] rounded-lg ${i === currentDayIndex
-                      ? 'bg-gradient-to-t from-[#00ff9d] dark:from-[#00ff9d] dark:to-zinc-900 shadow-lg shadow-[#00ff9d]/30'
-                      : val > 0
-                        ? 'bg-gradient-to-t from-zinc-200 to-zinc-100 dark:from-zinc-700 dark:to-zinc-800 group-hover:from-emerald-300 group-hover:to-emerald-200 dark:group-hover:from-emerald-800 dark:group-hover:to-emerald-900'
-                        : 'bg-zinc-100/50 dark:bg-zinc-800/30'
+                    ? 'bg-gradient-to-t from-[#00ff9d] dark:from-[#00ff9d] dark:to-zinc-900 shadow-lg shadow-[#00ff9d]/30'
+                    : val > 0
+                      ? 'bg-gradient-to-t from-zinc-200 to-zinc-100 dark:from-zinc-700 dark:to-zinc-800 group-hover:from-emerald-300 group-hover:to-emerald-200 dark:group-hover:from-emerald-800 dark:group-hover:to-emerald-900'
+                      : 'bg-zinc-100/50 dark:bg-zinc-800/30'
                     } transition-all duration-300`}
                   style={{
                     minHeight: val > 0 ? '40px' : '5px'
@@ -240,8 +240,8 @@ const Stats: React.FC = () => {
                 )}
               </div>
               <span className={`text-[11px] font-semibold mt-3 uppercase transition-colors ${i === currentDayIndex
-                  ? 'text-emerald-500 dark:text-emerald-400'
-                  : 'text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-400 dark:group-hover:text-emerald-500'
+                ? 'text-emerald-500 dark:text-emerald-400'
+                : 'text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-400 dark:group-hover:text-emerald-500'
                 }`}>
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'][i]}
               </span>
@@ -252,7 +252,7 @@ const Stats: React.FC = () => {
 
       {/* Monthly Chart */}
       {monthlyData.length > 0 && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
@@ -265,18 +265,17 @@ const Stats: React.FC = () => {
               <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
                 <div className="relative h-32 w-10 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl overflow-hidden group">
                   <div className="absolute inset-0 flex items-end justify-center">
-                    <motion.div 
+                    <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${(data.cleanDays / data.totalDays) * 100}%` }}
                       transition={{ duration: 1, ease: "easeOut", delay: i * 0.1 }}
-                      className={`w-full ${
-                        data.isCurrent 
-                          ? 'bg-emerald-500 dark:bg-emerald-500' 
-                          : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-emerald-300 dark:group-hover:bg-emerald-800'
-                      } transition-colors`}
+                      className={`w-full ${data.isCurrent
+                        ? 'bg-emerald-500 dark:bg-emerald-500'
+                        : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-emerald-300 dark:group-hover:bg-emerald-800'
+                        } transition-colors`}
                     />
                   </div>
-                  
+
                   {/* Tooltip overlay */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[1px]">
                     <span className="text-xs font-bold text-white">{data.cleanDays}</span>
