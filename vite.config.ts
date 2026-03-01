@@ -23,7 +23,7 @@ export default defineConfig({
         name: 'Streakly',
         short_name: 'Streakly',
         description: 'Track your quit journey and stay motivated with streak tracking and progress visualization',
-        theme_color: '#000000',
+        theme_color: '#00ff9d',
         background_color: '#00ff9d',
         display: 'standalone',
         start_url: '/',
