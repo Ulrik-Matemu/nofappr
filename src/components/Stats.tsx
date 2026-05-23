@@ -1,297 +1,521 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { getStreak, getLongestStreak, getRelapseHistory, getStartDate } from '../utils/storage';
+import {
+  getStreak,
+  getLongestStreak,
+  getRelapseHistory,
+  getStartDate,
+  getCheckInHistory,
+  type StreakSession,
+} from '../utils/storage';
 import Achievements from './Achievements';
 
+const ACCENT = '#00ff9d';
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_SHORT  = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const msPerDay = 1000 * 60 * 60 * 24;
+const floorDays = (ms: number) => Math.max(0, Math.floor(ms / msPerDay));
+
+/** Local YYYY-M-D key for set membership */
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+// ─── types ───────────────────────────────────────────────────────────────────
+
+interface WeekBar { day: string; shortDay: string; value: number; isToday: boolean }
+interface MonthBar { label: string; year: number; cleanDays: number; totalDays: number; isCurrent: boolean }
+interface InsightCard { emoji: string; label: string; value: string; sub?: string; accent?: boolean }
+
+// ─── component ───────────────────────────────────────────────────────────────
+
 const Stats: React.FC = () => {
-  const [, setCurrentStreak] = useState(0);
-  const [longestStreak, setLongestStreak] = useState(0);
-  const [relapses, setRelapses] = useState(0);
-  const [weeklyData, setWeeklyData] = useState<number[]>(Array(7).fill(0));
-  const [monthlyData, setMonthlyData] = useState<{ label: string; cleanDays: number; totalDays: number; isCurrent: boolean }[]>([]);
+  const [currentStreak,  setCurrentStreak]  = useState(0);
+  const [longestStreak,  setLongestStreak]  = useState(0);
+  const [relapses,       setRelapses]       = useState(0);
+  const [weekBars,       setWeekBars]       = useState<WeekBar[]>([]);
+  const [monthBars,      setMonthBars]      = useState<MonthBar[]>([]);
+  const [insights,       setInsights]       = useState<InsightCard[]>([]);
+  const [summaryLine,    setSummaryLine]    = useState('');
+  const [cleanRate,      setCleanRate]      = useState(0);
+  const [startDateStr,   setStartDateStr]   = useState<string | null>(null);
 
   useEffect(() => {
-    setCurrentStreak(getStreak());
-    setLongestStreak(getLongestStreak());
-    setRelapses(getRelapseHistory().length);
+    const current   = getStreak();
+    const longest   = getLongestStreak();
+    const sessions  = getRelapseHistory() as StreakSession[];
+    const startDate = getStartDate();
+    const checkIns  = getCheckInHistory();
 
-    // Calculate weekly data
-    const calculateWeeklyData = () => {
-      const history = getRelapseHistory();
-      const startDate = getStartDate();
-      const currentStreakVal = getStreak();
+    setCurrentStreak(current);
+    setLongestStreak(longest);
+    setRelapses(sessions.length);
+    setStartDateStr(startDate);
 
+    const now      = new Date();
+    const todayIdx = now.getDay();
 
+    // ── Weekly bars ──────────────────────────────────────────────────────────
+    const startPoints = sessions
+      .map(s => new Date(s.startedAt).getTime())
+      .sort((a, b) => a - b);
+    if (startDate) startPoints.push(new Date(startDate).getTime());
+    startPoints.sort((a, b) => a - b);
 
-      const resetPoints = [...history];
-      if (startDate) resetPoints.push(startDate);
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - todayIdx);
+    sunday.setHours(0, 0, 0, 0);
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
 
-      const resets = resetPoints
-        .map(d => new Date(d).getTime())
-        .sort((a, b) => a - b);
+    const bars: WeekBar[] = DAY_LABELS.map((day, i) => {
+      const dayStart = new Date(sunday); dayStart.setDate(sunday.getDate() + i);
+      const dayEnd   = new Date(dayStart); dayEnd.setHours(23, 59, 59, 999);
 
-      const now = new Date();
-      const dayOfWeek = now.getDay(); // 0 (Sun) - 6 (Sat)
-      const sunday = new Date(now);
-      sunday.setDate(now.getDate() - dayOfWeek);
-      sunday.setHours(0, 0, 0, 0);
+      if (dayStart > startOfToday) return { day, shortDay: DAY_SHORT[i], value: 0, isToday: false };
+      if (startPoints.length === 0) return { day, shortDay: DAY_SHORT[i], value: 0, isToday: i === todayIdx };
 
-      const data = [];
-      for (let i = 0; i < 7; i++) {
-        const currentDay = new Date(sunday);
-        currentDay.setDate(sunday.getDate() + i);
-        const endOfDay = new Date(currentDay);
-        endOfDay.setHours(23, 59, 59, 999);
+      const checkTs = dayEnd.getTime();
+      let latestStart = -1;
+      for (let r = startPoints.length - 1; r >= 0; r--) {
+        if (startPoints[r] <= checkTs) { latestStart = startPoints[r]; break; }
+      }
+      if (latestStart === -1) return { day, shortDay: DAY_SHORT[i], value: 0, isToday: i === todayIdx };
 
-        // For future days
-        const startOfToday = new Date(now);
-        startOfToday.setHours(0, 0, 0, 0);
+      const matched = sessions.find(s => new Date(s.startedAt).getTime() === latestStart);
+      const effectiveEnd = matched
+        ? Math.min(new Date(matched.endedAt).getTime(), checkTs)
+        : checkTs;
 
-        if (currentDay.getTime() > startOfToday.getTime()) {
-          data.push(0);
-          continue;
-        }
+      const val = i === todayIdx ? current : floorDays(effectiveEnd - latestStart);
+      return { day, shortDay: DAY_SHORT[i], value: val, isToday: i === todayIdx };
+    });
+    setWeekBars(bars);
 
-        const checkTime = endOfDay.getTime();
-        let latestReset = 0;
+    // ── Monthly bars ─────────────────────────────────────────────────────────
+    const allTimes = sessions.flatMap(s => [
+      new Date(s.startedAt).getTime(),
+      new Date(s.endedAt).getTime(),
+    ]);
+    if (startDate) allTimes.push(new Date(startDate).getTime());
+    if (allTimes.length === 0) allTimes.push(Date.now());
 
-        if (resets.length === 0) {
-          data.push(0);
-          continue;
-        }
+    const earliest    = new Date(Math.min(...allTimes));
+    const relapseDays = new Set(sessions.map(s => dayKey(new Date(s.endedAt))));
 
-        let found = false;
-        for (let r = resets.length - 1; r >= 0; r--) {
-          if (resets[r] <= checkTime) {
-            latestReset = resets[r];
-            found = true;
-            break;
-          }
-        }
+    const iterM = new Date(earliest); iterM.setDate(1);
+    const months: MonthBar[] = [];
 
-        if (!found) {
-          data.push(0);
-        } else {
-          const diffTime = checkTime - latestReset;
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          data.push(diffDays < 0 ? 0 : diffDays);
+    while (iterM <= now) {
+      const year = iterM.getFullYear(), month = iterM.getMonth();
+      const mStart = new Date(year, month, 1);
+      const mEnd   = new Date(year, month + 1, 0);
+      const aStart = mStart < earliest ? earliest : mStart;
+      const aEnd   = mEnd > now ? now : mEnd;
+
+      const cursor = new Date(aStart); cursor.setHours(0, 0, 0, 0);
+      const endDay = new Date(aEnd);   endDay.setHours(0, 0, 0, 0);
+      let clean = 0;
+      if (cursor <= endDay) {
+        const c = new Date(cursor);
+        while (c <= endDay) {
+          if (!relapseDays.has(dayKey(c))) clean++;
+          c.setDate(c.getDate() + 1);
         }
       }
+      months.push({
+        label:     mStart.toLocaleString('default', { month: 'short' }),
+        year,
+        cleanDays: clean,
+        totalDays: mEnd.getDate(),
+        isCurrent: month === now.getMonth() && year === now.getFullYear(),
+      });
+      iterM.setMonth(iterM.getMonth() + 1);
+    }
+    setMonthBars(months);
 
-      // Fallback: Ensure today's value matches current streak if valid
-      const todayIndex = new Date().getDay();
-      if (data[todayIndex] === 0 && currentStreakVal > 0) {
+    // ── Clean rate (all-time) ─────────────────────────────────────────────────
+    const trackingStart = startDate
+      ? Math.min(new Date(startDate).getTime(), ...(sessions.map(s => new Date(s.startedAt).getTime())))
+      : Date.now();
+    const totalTrackedDays  = Math.max(1, floorDays(Date.now() - trackingStart) + 1);
+    const totalRelapseDays  = relapseDays.size;
+    const rate = Math.round(((totalTrackedDays - totalRelapseDays) / totalTrackedDays) * 100);
+    setCleanRate(rate);
 
-        data[todayIndex] = currentStreakVal;
-      }
+    // ── Insight cards ─────────────────────────────────────────────────────────
+    const cards: InsightCard[] = [];
 
+    if (sessions.length > 0) {
+      const avgDays = Math.round(
+        sessions.reduce((sum, s) =>
+          sum + floorDays(new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()), 0)
+        / sessions.length
+      );
+      cards.push({
+        emoji: '📈',
+        label: 'Avg streak length',
+        value: `${avgDays}d`,
+        sub: `across ${sessions.length} attempt${sessions.length > 1 ? 's' : ''}`,
+      });
+    }
 
-      setWeeklyData(data);
-    };
-
-    // Calculate Monthly Data
-    const calculateMonthlyData = () => {
-      const history = getRelapseHistory();
-      const startDate = getStartDate();
-
-      let dates = history.map(d => new Date(d).getTime());
-      if (startDate) dates.push(new Date(startDate).getTime());
-
-      // If no data, at least show current month
-      if (dates.length === 0) {
-        dates.push(new Date().getTime());
-      }
-
-      const minTime = Math.min(...dates);
-      const earliestDate = new Date(minTime);
-      const now = new Date();
-
-      let iter = new Date(earliestDate);
-      iter.setDate(1); // Start of that month
-
-      const months = [];
-
-      while (iter <= now) {
-        const year = iter.getFullYear();
-        const month = iter.getMonth();
-
-        const monthStart = new Date(year, month, 1);
-        const monthEnd = new Date(year, month + 1, 0);
-
-        // Determine active window
-        const activeStart = monthStart < earliestDate ? earliestDate : monthStart;
-        const activeEnd = monthEnd > now ? now : monthEnd;
-
-        const startDay = new Date(activeStart); startDay.setHours(0, 0, 0, 0);
-        const endDay = new Date(activeEnd); endDay.setHours(0, 0, 0, 0);
-
-        // Create relapse set
-        const relapseDays = new Set(history.map(h => {
-          const d = new Date(h);
-          return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        }));
-
-        let cleanCount = 0;
-        const loopDay = new Date(startDay);
-
-        // Prevent infinite loop if startDay > endDay (can happen if earliestDate > now slightly due to timezones)
-        if (startDay <= endDay) {
-          while (loopDay <= endDay) {
-            const dayKey = `${loopDay.getFullYear()}-${loopDay.getMonth()}-${loopDay.getDate()}`;
-            if (!relapseDays.has(dayKey)) {
-              cleanCount++;
-            }
-            loopDay.setDate(loopDay.getDate() + 1);
-          }
-        }
-
-        const monthName = monthStart.toLocaleString('default', { month: 'short' });
-
-        months.push({
-          label: `${monthName}`,
-          cleanDays: cleanCount,
-          totalDays: monthEnd.getDate(),
-          isCurrent: month === now.getMonth() && year === now.getFullYear()
+    if (checkIns.length > 0) {
+      const moodByDay: Record<number, { happy: number; total: number }> = {};
+      checkIns.forEach(ci => {
+        const d = new Date(ci.date).getDay();
+        if (!moodByDay[d]) moodByDay[d] = { happy: 0, total: 0 };
+        moodByDay[d].total++;
+        if (ci.mood === 'happy') moodByDay[d].happy++;
+      });
+      let bestDay = -1, bestRate = -1;
+      Object.entries(moodByDay).forEach(([d, { happy, total }]) => {
+        const r = happy / total;
+        if (r > bestRate && total >= 2) { bestRate = r; bestDay = Number(d); }
+      });
+      if (bestDay >= 0) {
+        cards.push({
+          emoji: '😊',
+          label: 'Best mood day',
+          value: DAY_LABELS[bestDay],
+          sub: `${Math.round(bestRate * 100)}% happy check-ins`,
         });
-
-        iter.setMonth(iter.getMonth() + 1);
       }
+    }
 
-      setMonthlyData(months);
-    };
+    if (sessions.length >= 2) {
+      const last = sessions[sessions.length - 1];
+      const prev = sessions[sessions.length - 2];
+      const lastLen = floorDays(new Date(last.endedAt).getTime() - new Date(last.startedAt).getTime());
+      const prevLen = floorDays(new Date(prev.endedAt).getTime() - new Date(prev.startedAt).getTime());
+      const trend = lastLen > prevLen;
+      cards.push({
+        emoji: trend ? '🔺' : '🔻',
+        label: 'Streak trend',
+        value: trend ? 'Improving' : 'Declining',
+        sub: `${lastLen}d vs ${prevLen}d last time`,
+        accent: trend,
+      });
+    }
 
-    calculateWeeklyData();
-    calculateMonthlyData();
+    if (current >= 7) {
+      cards.push({
+        emoji: '🔥',
+        label: 'Momentum',
+        value: current >= longest ? 'Personal best' : `${longest - current}d to PB`,
+        sub: current >= longest ? `New record: ${current} days` : `Best was ${longest} days`,
+        accent: current >= longest,
+      });
+    }
+
+    setInsights(cards);
+
+    // ── Summary sentence ──────────────────────────────────────────────────────
+    let summary = '';
+    if (current === 0 && sessions.length === 0) {
+      summary = "Your journey starts the moment you decide to begin.";
+    } else if (current === 0) {
+      summary = `You've reset ${sessions.length} time${sessions.length > 1 ? 's' : ''}. Every reset is data, not failure — keep going.`;
+    } else if (current >= longest && current >= 7) {
+      summary = `You're at a personal best right now. ${rate}% of all tracked days have been clean.`;
+    } else if (rate >= 80) {
+      summary = `${rate}% clean rate — strong consistency. Your best streak was ${longest} days.`;
+    } else {
+      summary = `${current} days in. ${rate}% clean overall. Your best was ${longest} days — you can beat it.`;
+    }
+    setSummaryLine(summary);
+
   }, []);
 
-  const maxVal = Math.max(...weeklyData, 7);
-  const currentDayIndex = new Date().getDay();
+  const maxWeek = Math.max(...weekBars.map(b => b.value), 1);
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-8 pb-10">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
-        >
-          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Longest Streak</p>
-          <p className="text-3xl font-bold text-zinc-900 dark:text-white">{longestStreak} <span className="text-sm font-normal text-zinc-500">days</span></p>
-        </motion.div>
+    <div className="w-full max-w-md mx-auto space-y-4 pb-16 px-4 pt-2">
 
+      {/* ── Summary header ─────────────────────────────────────────────── */}
+      {summaryLine && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
+          className="rounded-3xl p-5"
+          style={{ background: 'rgba(0,255,157,0.06)', border: '1px solid rgba(0,255,157,0.15)' }}
         >
-          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Relapses</p>
-          <p className="text-3xl font-bold text-zinc-900 dark:text-white">{relapses}</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2"
+            style={{ color: `${ACCENT}99` }}>
+            Your Summary
+          </p>
+          <p className="text-sm leading-relaxed font-medium"
+            style={{ color: 'rgba(255,255,255,0.75)' }}>
+            {summaryLine}
+          </p>
         </motion.div>
+      )}
+
+      {/* ── Top stat row ───────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Current', value: `${currentStreak}`, unit: 'd' },
+          { label: 'Best',    value: `${longestStreak}`, unit: 'd' },
+          { label: 'Relapses', value: `${relapses}`,    unit: '' },
+        ].map((item, i) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.07 }}
+            className="rounded-3xl p-4 flex flex-col"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-widest mb-2"
+              style={{ color: 'rgba(255,255,255,0.3)' }}>
+              {item.label}
+            </span>
+            <span className="text-3xl font-black leading-none"
+              style={{ color: 'rgba(255,255,255,0.92)' }}>
+              {item.value}
+              {item.unit && (
+                <span className="text-base font-semibold ml-0.5"
+                  style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {item.unit}
+                </span>
+              )}
+            </span>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Weekly Chart */}
+      {/* ── Clean rate bar ─────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="rounded-3xl p-5"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
       >
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-white">This Week's Progress</h3>
-        <div className="flex items-end justify-between h-24 gap-2">
-          {weeklyData.map((val, i) => (
-            <div key={i} className="flex flex-col items-center flex-1 group">
-              <div className="relative w-full flex items-end justify-center h-full min-h-[100px]">
+        <div className="flex justify-between items-baseline mb-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: 'rgba(255,255,255,0.3)' }}>
+            All-time clean rate
+          </span>
+          <span className="text-xl font-black"
+            style={{ color: cleanRate >= 70 ? ACCENT : 'rgba(255,255,255,0.85)' }}>
+            {cleanRate}
+            <span className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.4)' }}>%</span>
+          </span>
+        </div>
+        <div className="w-full rounded-full overflow-hidden"
+          style={{ height: 6, background: 'rgba(255,255,255,0.07)' }}>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${cleanRate}%` }}
+            transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
+            className="h-full rounded-full"
+            style={{
+              background: cleanRate >= 70
+                ? `linear-gradient(90deg, ${ACCENT}88, ${ACCENT})`
+                : 'linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0.5))',
+              boxShadow: cleanRate >= 70 ? `0 0 8px ${ACCENT}66` : 'none',
+            }}
+          />
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.2)' }}>0%</span>
+          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.2)' }}>100%</span>
+        </div>
+      </motion.div>
+
+      {/* ── This week ──────────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="rounded-3xl p-5"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: 'rgba(255,255,255,0.3)' }}>
+            This week
+          </span>
+          <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.2)' }}>
+            days clean
+          </span>
+        </div>
+        <div className="flex items-end gap-1.5" style={{ height: 72 }}>
+          {weekBars.map((bar, i) => (
+            <div key={i} className="flex flex-col items-center flex-1 gap-2">
+              <div className="relative w-full flex items-end justify-center" style={{ height: 56 }}>
+                {/* Track */}
+                <div className="absolute bottom-0 w-full rounded-lg"
+                  style={{ height: '100%', background: 'rgba(255,255,255,0.04)' }} />
+                {/* Fill */}
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
+                  initial={{ height: 0 }}
                   animate={{
-                    height: maxVal > 0 ? `${(val / maxVal) * 100}%` : '0%',
-                    opacity: 1
+                    height: maxWeek > 0
+                      ? `${Math.max((bar.value / maxWeek) * 100, bar.value > 0 ? 12 : 0)}%`
+                      : '0%'
                   }}
-                  transition={{
-                    duration: 0.8,
-                    ease: [0.34, 1.56, 0.64, 1], // Bouncy easing
-                    delay: i * 0.08
-                  }}
-                  whileHover={{
-                    scale: 1.05,
-                    transition: { duration: 0.2 }
-                  }}
-                  className={`w-full max-w-[28px] rounded-lg ${i === currentDayIndex
-                    ? 'bg-gradient-to-t from-[#00ff9d] dark:from-[#00ff9d] dark:to-zinc-900 shadow-lg shadow-[#00ff9d]/30'
-                    : val > 0
-                      ? 'bg-gradient-to-t from-zinc-200 to-zinc-100 dark:from-zinc-700 dark:to-zinc-800 group-hover:from-emerald-300 group-hover:to-emerald-200 dark:group-hover:from-emerald-800 dark:group-hover:to-emerald-900'
-                      : 'bg-zinc-100/50 dark:bg-zinc-800/30'
-                    } transition-all duration-300`}
+                  transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1], delay: i * 0.06 }}
+                  className="absolute bottom-0 w-full rounded-lg"
                   style={{
-                    minHeight: val > 0 ? '40px' : '5px'
+                    background: bar.isToday
+                      ? `linear-gradient(to top, ${ACCENT}, ${ACCENT}88)`
+                      : bar.value > 0
+                      ? 'rgba(255,255,255,0.15)'
+                      : 'transparent',
+                    boxShadow: bar.isToday && bar.value > 0 ? `0 0 10px ${ACCENT}44` : 'none',
                   }}
                 />
-                {/* Value tooltip on hover */}
-                {val > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    whileHover={{ opacity: 1, y: 0 }}
-                    className="absolute -top-8 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
-                  >
-                    {val}
-                  </motion.div>
+                {bar.value > 0 && (
+                  <span className="absolute bottom-1 text-[9px] font-bold z-10"
+                    style={{ color: bar.isToday ? '#000' : 'rgba(255,255,255,0.5)' }}>
+                    {bar.value}
+                  </span>
                 )}
               </div>
-              <span className={`text-[11px] font-semibold mt-3 uppercase transition-colors ${i === currentDayIndex
-                ? 'text-emerald-500 dark:text-emerald-400'
-                : 'text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-400 dark:group-hover:text-emerald-500'
-                }`}>
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'][i]}
+              <span className="text-[10px] font-bold"
+                style={{ color: bar.isToday ? ACCENT : 'rgba(255,255,255,0.25)' }}>
+                {bar.shortDay}
               </span>
             </div>
           ))}
         </div>
       </motion.div>
 
-      {/* Monthly Chart */}
-      {monthlyData.length > 0 && (
+      {/* ── Insight cards ──────────────────────────────────────────────── */}
+      {insights.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
         >
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Monthly History</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Month Bar shows how many clean days each month (height represents percentage of total days in that month). Current month is highlighted in emerald.</p>
-          <div className="flex items-end gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {monthlyData.map((data, i) => (
-              <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
-                <div className="relative h-32 w-10 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl overflow-hidden group">
-                  <div className="absolute inset-0 flex items-end justify-center">
-                    <motion.div
-                      initial={{ height: 0 }}
-                      animate={{ height: `${(data.cleanDays / data.totalDays) * 100}%` }}
-                      transition={{ duration: 1, ease: "easeOut", delay: i * 0.1 }}
-                      className={`w-full ${data.isCurrent
-                        ? 'bg-emerald-500 dark:bg-emerald-500'
-                        : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-emerald-300 dark:group-hover:bg-emerald-800'
-                        } transition-colors`}
-                    />
-                  </div>
-
-                  {/* Tooltip overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[1px]">
-                    <span className="text-xs font-bold text-white">{data.cleanDays}</span>
-                  </div>
-                </div>
-                <span className={`text-[10px] font-medium uppercase ${data.isCurrent ? 'text-emerald-500 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                  {data.label}
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3 px-1"
+            style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Insights
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {insights.map((card, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 + i * 0.08 }}
+                className="rounded-3xl p-4 flex flex-col gap-1"
+                style={{
+                  background: card.accent ? 'rgba(0,255,157,0.06)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${card.accent ? 'rgba(0,255,157,0.18)' : 'rgba(255,255,255,0.07)'}`,
+                }}
+              >
+                <span style={{ fontSize: 20 }}>{card.emoji}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider mt-1"
+                  style={{ color: 'rgba(255,255,255,0.28)' }}>
+                  {card.label}
                 </span>
-              </div>
+                <span className="text-lg font-black leading-tight"
+                  style={{ color: card.accent ? ACCENT : 'rgba(255,255,255,0.88)' }}>
+                  {card.value}
+                </span>
+                {card.sub && (
+                  <span className="text-[10px] leading-tight"
+                    style={{ color: 'rgba(255,255,255,0.3)' }}>
+                    {card.sub}
+                  </span>
+                )}
+              </motion.div>
             ))}
           </div>
         </motion.div>
       )}
 
-      {/* Achievements Section */}
-      <Achievements />
+      {/* ── Monthly history ────────────────────────────────────────────── */}
+      {monthBars.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-3xl p-5"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-[10px] font-bold uppercase tracking-widest"
+              style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Monthly history
+            </span>
+            <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.2)' }}>
+              clean days / month
+            </span>
+          </div>
+          <div className="flex items-end gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            {monthBars.map((bar, i) => {
+              const pctH = bar.totalDays > 0 ? (bar.cleanDays / bar.totalDays) * 100 : 0;
+              return (
+                <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2 group"
+                  style={{ minWidth: 36 }}>
+                  <div className="relative rounded-xl overflow-hidden"
+                    style={{ height: 80, width: 36, background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="absolute inset-0 flex items-end">
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${pctH}%` }}
+                        transition={{ duration: 1, ease: 'easeOut', delay: 0.4 + i * 0.05 }}
+                        className="w-full"
+                        style={{
+                          background: bar.isCurrent
+                            ? `linear-gradient(to top, ${ACCENT}, ${ACCENT}77)`
+                            : 'rgba(255,255,255,0.18)',
+                          boxShadow: bar.isCurrent ? `0 0 8px ${ACCENT}44` : 'none',
+                        }}
+                      />
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ background: 'rgba(0,0,0,0.5)' }}>
+                      <span className="text-[10px] font-bold"
+                        style={{ color: bar.isCurrent ? ACCENT : '#fff' }}>
+                        {bar.cleanDays}d
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase"
+                    style={{ color: bar.isCurrent ? ACCENT : 'rgba(255,255,255,0.25)' }}>
+                    {bar.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Journey start ──────────────────────────────────────────────── */}
+      {startDateStr && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="flex items-center justify-between rounded-2xl px-5 py-3.5"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Journey started
+          </span>
+          <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            {new Date(startDateStr).toLocaleDateString('default', {
+              day: 'numeric', month: 'long', year: 'numeric',
+            })}
+          </span>
+        </motion.div>
+      )}
+
+      {/* ── Achievements ───────────────────────────────────────────────── */}
+      <div className="pt-1">
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-3 px-1"
+          style={{ color: 'rgba(255,255,255,0.25)' }}>
+          Achievements
+        </p>
+        <Achievements />
+      </div>
     </div>
   );
 };

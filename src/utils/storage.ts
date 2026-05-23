@@ -1,3 +1,5 @@
+// src/utils/storage.ts
+
 const STORAGE_KEYS = {
   START_DATE: 'nofap_start_date',
   CHECK_INS: 'nofap_check_ins',
@@ -7,147 +9,241 @@ const STORAGE_KEYS = {
   ACHIEVEMENTS: 'nofap_achievements',
 };
 
-export const getOnboardingStatus = (): boolean => {
-  return localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE) === 'true';
+// ─────────────────────────────────────────────────────────────────────────────
+// Schema
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One completed streak session.
+ * startedAt  – ISO timestamp when the streak began (copied from nofap_start_date at reset time)
+ * endedAt    – ISO timestamp when the user hit "reset" (i.e. relapse moment)
+ */
+export interface StreakSession {
+  startedAt: string;
+  endedAt: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Migration  (call once at app boot, before any other storage read)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Converts the old relapse_history format (plain ISO string[]) to StreakSession[].
+ *
+ * OLD format: each entry was new Date().toISOString() pushed at reset time.
+ *   → We had no record of when each streak *started*, only when it *ended*.
+ *   → We approximate startedAt = previous endedAt (or the start_date for the
+ *     very first session), accepting that old longest-streak data is still
+ *     approximate but at least the array shape is correct going forward.
+ *
+ * NEW format: { startedAt, endedAt }
+ */
+export const migrateRelapseHistory = (): void => {
+  const raw = localStorage.getItem(STORAGE_KEYS.RELAPSE_HISTORY);
+  if (!raw) return;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Corrupt data — reset so nothing breaks downstream
+    localStorage.removeItem(STORAGE_KEYS.RELAPSE_HISTORY);
+    return;
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) return;
+
+  // Already migrated if first element is an object with startedAt
+  if (typeof parsed[0] === 'object' && parsed[0] !== null && 'startedAt' in parsed[0]) return;
+
+  // Old format: array of ISO strings
+  const oldDates = (parsed as string[])
+    .map(s => new Date(s).getTime())
+    .sort((a, b) => a - b);
+
+  const startDate = localStorage.getItem(STORAGE_KEYS.START_DATE);
+
+  const sessions: StreakSession[] = oldDates.map((endedAt, i) => {
+    // Best approximation of startedAt:
+    //   – for first relapse: use the very first nofap_start_date if available
+    //   – for subsequent relapses: use the previous endedAt
+    let startedAt: number;
+    if (i === 0) {
+      // Try to recover the original start date.  If nofap_start_date predates
+      // the first reset it's a real first-run date; otherwise fall back to 0.
+      const startTs = startDate ? new Date(startDate).getTime() : 0;
+      startedAt = startTs < endedAt ? startTs : endedAt;
+    } else {
+      startedAt = oldDates[i - 1];
+    }
+    return {
+      startedAt: new Date(startedAt).toISOString(),
+      endedAt: new Date(endedAt).toISOString(),
+    };
+  });
+
+  localStorage.setItem(STORAGE_KEYS.RELAPSE_HISTORY, JSON.stringify(sessions));
 };
 
-export const setOnboardingComplete = () => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Onboarding
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getOnboardingStatus = (): boolean =>
+  localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE) === 'true';
+
+export const setOnboardingComplete = (): void => {
   localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
 };
 
-export const getStartDate = (): string | null => {
-  return localStorage.getItem(STORAGE_KEYS.START_DATE);
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Streak
+// ─────────────────────────────────────────────────────────────────────────────
 
+export const getStartDate = (): string | null =>
+  localStorage.getItem(STORAGE_KEYS.START_DATE);
+
+/**
+ * Current streak in whole days elapsed since nofap_start_date.
+ * Uses Math.floor so day 0 = "started today, less than 24 h ago".
+ */
 export const getStreak = (): number => {
   const startDate = getStartDate();
   if (!startDate) return 0;
-
-  const start = new Date(startDate);
-  const now = new Date();
-  const diffTime = now.getTime() - start.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-  
-  return diffDays < 0 ? 0 : diffDays; 
+  const diffMs = Date.now() - new Date(startDate).getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return days < 0 ? 0 : days;
 };
 
-export const getRelapseHistory = (): string[] => {
-  const history = localStorage.getItem(STORAGE_KEYS.RELAPSE_HISTORY);
-  return history ? JSON.parse(history) : [];
+// ─────────────────────────────────────────────────────────────────────────────
+// Relapse history  (now typed as StreakSession[])
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getRelapseHistory = (): StreakSession[] => {
+  const raw = localStorage.getItem(STORAGE_KEYS.RELAPSE_HISTORY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as StreakSession[];
+  } catch {
+    return [];
+  }
 };
 
-export const resetStreak = () => {
+/**
+ * Records the current streak as a completed session, then resets the start date.
+ *
+ * Before fix: pushed new Date().toISOString() → gap between two entries was
+ *   ~0 ms because start_date was also overwritten at the same instant.
+ * After fix:  saves { startedAt: <old start_date>, endedAt: <now> } so the
+ *   full duration of the streak is preserved and getLongestStreak() works
+ *   correctly even after a single relapse.
+ */
+export const resetStreak = (): void => {
   const currentStartDate = localStorage.getItem(STORAGE_KEYS.START_DATE);
   if (currentStartDate) {
-    const history = getRelapseHistory();
-    // We record the date the streak ended (today)
-    history.push(new Date().toISOString());
-    localStorage.setItem(STORAGE_KEYS.RELAPSE_HISTORY, JSON.stringify(history));
+    const sessions = getRelapseHistory();
+    sessions.push({
+      startedAt: currentStartDate,          // when this streak began
+      endedAt: new Date().toISOString(),    // right now = relapse moment
+    });
+    localStorage.setItem(STORAGE_KEYS.RELAPSE_HISTORY, JSON.stringify(sessions));
   }
   localStorage.setItem(STORAGE_KEYS.START_DATE, new Date().toISOString());
 };
 
-// Stats Helpers
-export const getLongestStreak = (): number => {
-  const history = getRelapseHistory();
-  const startDate = localStorage.getItem(STORAGE_KEYS.START_DATE);
-  if (!history.length && !startDate) return 0;
+// ─────────────────────────────────────────────────────────────────────────────
+// Stats helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
-  let dates = [...history];
-  if (startDate) dates.unshift(startDate); // The very first start? No, history stores RESET dates.
-  
-  // This is a simplified approximation. For perfect accuracy we'd need pairs of [start, end].
-  // But for now, let's assume longest streak is max(currentStreak, maxDiffBetweenRelapses).
-  
-  let maxDays = getStreak();
-  
-  // Sort history to be sure
-  const sortedHistory = history.map(d => new Date(d).getTime()).sort((a, b) => a - b);
-  
-  for (let i = 1; i < sortedHistory.length; i++) {
-    const diff = sortedHistory[i] - sortedHistory[i - 1];
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days > maxDays) maxDays = days;
+/**
+ * Returns the longest streak ever, in days.
+ *
+ * Checks all completed sessions AND the live current streak so the value is
+ * always up to date even if the user has never relapsed.
+ */
+export const getLongestStreak = (): number => {
+  const sessions = getRelapseHistory();
+  let max = getStreak(); // current live streak is a candidate
+
+  for (const session of sessions) {
+    const diffMs = new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (days > max) max = days;
   }
 
-  return maxDays;
+  return max;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Check-ins
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface CheckIn {
-  date: string;
+  date: string; // YYYY-MM-DD local date
   mood: 'happy' | 'neutral' | 'sad';
 }
 
-export const saveCheckIn = (mood: CheckIn['mood']) => {
-  const checkInsStr = localStorage.getItem(STORAGE_KEYS.CHECK_INS);
-  const checkIns: CheckIn[] = checkInsStr ? JSON.parse(checkInsStr) : [];
-  
-  const today = new Date().toISOString().split('T')[0];
-  const existingIndex = checkIns.findIndex(c => c.date === today);
-  
-  const newCheckIn = { date: today, mood };
+const todayKey = (): string => new Date().toISOString().split('T')[0];
 
-  if (existingIndex >= 0) {
-    checkIns[existingIndex] = newCheckIn;
-  } else {
-    checkIns.push(newCheckIn);
-  }
-
+export const saveCheckIn = (mood: CheckIn['mood']): void => {
+  const raw = localStorage.getItem(STORAGE_KEYS.CHECK_INS);
+  const checkIns: CheckIn[] = raw ? JSON.parse(raw) : [];
+  const today = todayKey();
+  const idx = checkIns.findIndex(c => c.date === today);
+  const entry = { date: today, mood };
+  if (idx >= 0) checkIns[idx] = entry;
+  else checkIns.push(entry);
   localStorage.setItem(STORAGE_KEYS.CHECK_INS, JSON.stringify(checkIns));
 };
 
 export const getCheckInHistory = (): CheckIn[] => {
-  const checkInsStr = localStorage.getItem(STORAGE_KEYS.CHECK_INS);
-  return checkInsStr ? JSON.parse(checkInsStr) : [];
+  const raw = localStorage.getItem(STORAGE_KEYS.CHECK_INS);
+  return raw ? JSON.parse(raw) : [];
 };
 
 export const getTodayMood = (): CheckIn['mood'] | null => {
-  const checkInsStr = localStorage.getItem(STORAGE_KEYS.CHECK_INS);
-  if (!checkInsStr) return null;
-  
-  const checkIns: CheckIn[] = JSON.parse(checkInsStr);
-  const today = new Date().toISOString().split('T')[0];
-  return checkIns.find(c => c.date === today)?.mood || null;
+  const raw = localStorage.getItem(STORAGE_KEYS.CHECK_INS);
+  if (!raw) return null;
+  const checkIns: CheckIn[] = JSON.parse(raw);
+  return checkIns.find(c => c.date === todayKey())?.mood ?? null;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Journal
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface JournalEntry {
-  date: string;
+  date: string; // YYYY-MM-DD local date
   text: string;
 }
 
-export const saveJournalEntry = (text: string) => {
-  const journalStr = localStorage.getItem(STORAGE_KEYS.JOURNAL);
-  const journal: JournalEntry[] = journalStr ? JSON.parse(journalStr) : [];
-  
-  const today = new Date().toISOString().split('T')[0];
-  const existingIndex = journal.findIndex(j => j.date === today);
-  
-  const newEntry = { date: today, text };
-
-  if (existingIndex >= 0) {
-    journal[existingIndex] = newEntry;
-  } else {
-    journal.push(newEntry);
-  }
-
+export const saveJournalEntry = (text: string): void => {
+  const raw = localStorage.getItem(STORAGE_KEYS.JOURNAL);
+  const journal: JournalEntry[] = raw ? JSON.parse(raw) : [];
+  const today = todayKey();
+  const idx = journal.findIndex(j => j.date === today);
+  const entry = { date: today, text };
+  if (idx >= 0) journal[idx] = entry;
+  else journal.push(entry);
   localStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(journal));
 };
 
 export const getJournalHistory = (): JournalEntry[] => {
-  const journalStr = localStorage.getItem(STORAGE_KEYS.JOURNAL);
-  return journalStr ? JSON.parse(journalStr) : [];
+  const raw = localStorage.getItem(STORAGE_KEYS.JOURNAL);
+  return raw ? JSON.parse(raw) : [];
 };
 
 export const getTodayJournal = (): string => {
-  const journalStr = localStorage.getItem(STORAGE_KEYS.JOURNAL);
-  if (!journalStr) return '';
-  
-  const journal: JournalEntry[] = JSON.parse(journalStr);
-  const today = new Date().toISOString().split('T')[0];
-  return journal.find(j => j.date === today)?.text || '';
+  const raw = localStorage.getItem(STORAGE_KEYS.JOURNAL);
+  if (!raw) return '';
+  const journal: JournalEntry[] = JSON.parse(raw);
+  return journal.find(j => j.date === todayKey())?.text ?? '';
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Achievements
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface Achievement {
   id: string;
   title: string;
@@ -158,42 +254,37 @@ export interface Achievement {
 }
 
 export const BADGES: Omit<Achievement, 'unlockedAt'>[] = [
-  { id: '3_days', title: '3-Day Warrior', description: 'Survived the first 3 days.', icon: '🥚', daysRequired: 3 },
-  { id: '7_days', title: 'One Week Strong', description: 'First week completed!', icon: '🐣', daysRequired: 7 },
-  { id: '14_days', title: 'Fortnight Fighter', description: 'Two weeks of discipline.', icon: '🐥', daysRequired: 14 },
-  { id: '30_days', title: '30-Day Master', description: 'One month of freedom.', icon: '🦅', daysRequired: 30 },
-  { id: '90_days', title: '90-Day Legend', description: 'The ultimate reboot.', icon: '👑', daysRequired: 90 },
+  { id: '3_days',  title: '3-Day Warrior',    description: 'Survived the first 3 days.',   icon: '🥚', daysRequired: 3  },
+  { id: '7_days',  title: 'One Week Strong',   description: 'First week completed!',         icon: '🐣', daysRequired: 7  },
+  { id: '14_days', title: 'Fortnight Fighter', description: 'Two weeks of discipline.',      icon: '🐥', daysRequired: 14 },
+  { id: '30_days', title: '30-Day Master',     description: 'One month of freedom.',         icon: '🦅', daysRequired: 30 },
+  { id: '90_days', title: '90-Day Legend',     description: 'The ultimate reboot.',          icon: '👑', daysRequired: 90 },
 ];
 
 export const getAchievements = (): Achievement[] => {
-  const unlockedStr = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
-  const unlocked: { id: string; date: string }[] = unlockedStr ? JSON.parse(unlockedStr) : [];
-  
-  return BADGES.map(badge => {
-    const unlockData = unlocked.find(u => u.id === badge.id);
-    return {
-      ...badge,
-      unlockedAt: unlockData ? unlockData.date : undefined
-    };
-  });
+  const raw = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
+  const unlocked: { id: string; date: string }[] = raw ? JSON.parse(raw) : [];
+  return BADGES.map(badge => ({
+    ...badge,
+    unlockedAt: unlocked.find(u => u.id === badge.id)?.date,
+  }));
 };
 
-export const checkAchievements = (currentStreak: number) => {
-  const unlockedStr = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
-  const unlocked: { id: string; date: string }[] = unlockedStr ? JSON.parse(unlockedStr) : [];
-  
+export const checkAchievements = (currentStreak: number): boolean => {
+  const raw = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
+  const unlocked: { id: string; date: string }[] = raw ? JSON.parse(raw) : [];
   let hasNewUnlock = false;
 
-  BADGES.forEach(badge => {
+  for (const badge of BADGES) {
     if (currentStreak >= badge.daysRequired && !unlocked.find(u => u.id === badge.id)) {
       unlocked.push({ id: badge.id, date: new Date().toISOString() });
       hasNewUnlock = true;
     }
-  });
+  }
 
   if (hasNewUnlock) {
     localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(unlocked));
   }
-  
+
   return hasNewUnlock;
 };

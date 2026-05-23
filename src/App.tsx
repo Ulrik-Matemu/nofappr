@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getOnboardingStatus } from './utils/storage';
 import { Flame, ChartNoAxesColumn, CircleCheckBig, ShieldHalf, NotebookPen } from 'lucide-react';
+import { migrateRelapseHistory } from './utils/storage'
 
 const StreakCounter = lazy(() => import('./components/StreakCounter'));
 const CheckIn = lazy(() => import('./components/CheckIn'));
@@ -18,6 +19,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    migrateRelapseHistory();
     const onboarded = getOnboardingStatus();
     setIsOnboarded(onboarded);
     setIsLoading(false);
